@@ -1,4 +1,5 @@
 [project]
+name = "aoe4-discord"
 version = "0.1.0"
 readme = "README.md"
 description = "AOE4 Discord Bot"
