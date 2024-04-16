@@ -2,8 +2,8 @@ import discord
 import logging
 
 logging.basicConfig(
-    level=logging.INFO,  # Set the logging level to DEBUG
-    format='%(asctime)s - %(levelname)s - %(message)s',  # Define the format of log messages
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
 )
 
 logger = logging.getLogger(__name__)
