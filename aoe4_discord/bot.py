@@ -26,14 +26,13 @@ async def on_ready() -> None:
 @AOE4DiscordBot.command(name="ls", help="Retrieve player profile and stats by profile ID.")
 async def ls(ctx: discord.ext.commands.Context, profile_id: int) -> None:
     async with aoe4_discord.AOE4Client() as client:
-        stats = await client.get_player_profile_and_stats(profile_id)
+        stats: dict[str, typing.Any] | None = await client.get_player_profile_and_stats(profile_id)
         logger.info(stats)
 
         if stats is None:
             await ctx.channel.send(f"Couldn't read stats for profile: {profile_id}")
             return
 
-        stats: dict[str, typing.Any]
         total_ls = stats["modes"][aoe4_discord.GameMode.rm_solo]["losses_count"] + \
             stats["modes"][aoe4_discord.GameMode.rm_2v2]["losses_count"] + \
             stats["modes"][aoe4_discord.GameMode.rm_3v3]["losses_count"] + \
