@@ -1,3 +1,5 @@
+import typing
+
 import discord
 import logging
 import discord.ext.commands
@@ -9,7 +11,6 @@ logging.basicConfig(
 )
 
 logger = logging.getLogger(__name__)
-
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -27,9 +28,15 @@ async def ls(ctx: discord.ext.commands.Context, profile_id: int) -> None:
     async with aoe4_discord.AOE4Client() as client:
         stats = await client.get_player_profile_and_stats(profile_id)
         logger.info(stats)
-        total_ls = stats["modes"]["rm_3v3_elo"]["losses_count"] + \
-                   stats["modes"]["rm_2v2_elo"]["losses_count"] + \
-                   stats["modes"]["rm_solo"]["losses_count"] + \
-                   stats["modes"]["rm_4v4_elo"]["losses_count"]
+
+        if stats is None:
+            await ctx.channel.send(f"Couldn't read stats for profile: {profile_id}")
+            return
+
+        stats: dict[str, typing.Any]
+        total_ls = stats["modes"][aoe4_discord.GameMode.rm_solo]["losses_count"] + \
+            stats["modes"][aoe4_discord.GameMode.rm_2v2]["losses_count"] + \
+            stats["modes"][aoe4_discord.GameMode.rm_3v3]["losses_count"] + \
+            stats["modes"][aoe4_discord.GameMode.rm_4v4]["losses_count"]
 
         await ctx.channel.send(f'Total {stats["name"]} Ls: {total_ls}')
