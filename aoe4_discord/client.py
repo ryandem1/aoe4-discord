@@ -11,7 +11,7 @@ class AOE4Client:
 
         self.session = aiohttp.ClientSession()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> 'AOE4Client':
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
