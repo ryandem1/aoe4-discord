@@ -1,4 +1,5 @@
 import aiohttp
+import aoe4_discord
 
 
 class AOE4Client:
@@ -17,13 +18,13 @@ class AOE4Client:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.session.close()
 
-    async def get_player_profile_and_stats(self, profile_id: int) -> None:
+    async def get_player_profile_and_stats(self, profile: aoe4_discord.Idiot) -> None:
         """Will retrieve the player profile and stats for a profile by id.
         Endpoint: /v0/players/4635035
 
         :return:
         """
-        endpoint = f"/v0/players/{profile_id}"
+        endpoint = f"/v0/players/{profile.profile_id}"
         async with self.session.get(self.base_url + endpoint) as response:
             if response.status != 200:
                 return None

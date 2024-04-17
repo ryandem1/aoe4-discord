@@ -1,6 +1,20 @@
 import enum
 
 
+class Idiot(enum.StrEnum):
+    JORDANIEL = "JORDANIEL"
+    RYAN = "RYAN"
+    JARED = "JARED"
+
+    @property
+    def profile_id(self) -> int:
+        return {
+            self.JORDANIEL: 14762821,
+            self.RYAN: 18933967,
+            self.JARED: 9367305
+        }[self]
+
+
 class GameMode(enum.StrEnum):
     """Game mode for AOE 4"""
     rm_solo = "rm_solo"
