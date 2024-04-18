@@ -4,3 +4,5 @@ WORKDIR /bot
 
 COPY . .
 RUN pip install .
+
+CMD ["python", "aoe4_discord/main.py"]
