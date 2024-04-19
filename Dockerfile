@@ -2,7 +2,7 @@ FROM python:3.12
 
 # Set environment variables
 ENV PORT=8080
-ENV APP_HOME /app
+ENV APP_HOME app
 
 WORKDIR /$APP_HOME
 
