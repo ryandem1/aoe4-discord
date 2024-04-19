@@ -36,7 +36,7 @@ class AOE4Client:
             data = await response.json()
         return data
 
-    async def get_last_game_id(self, profile: Idiot) -> int | None:
+    async def get_last_game(self, profile: Idiot) -> dict[str, typing.Any] | None:
         """Will retrieve last games apm for a profile"""
         endpoint = f"/api/v0/players/{profile.profile_id}/games/last"
         async with self.session.get(self.base_url + endpoint) as response:
@@ -44,7 +44,7 @@ class AOE4Client:
                 logger.error(f"Error from API. Response Status: {response.status}. Text: {response.json()}")
                 return None
             data = await response.json()
-        return data["game_id"]
+        return data
 
     async def get_game(self, profile: Idiot, game_id: int) -> dict[str, typing.Any] | None:
         """Get game by ID"""
