@@ -1,6 +1,10 @@
 FROM python:3.12
 
-WORKDIR /bot
+# Set environment variables
+ENV PORT=8080
+ENV APP_HOME /app
+
+WORKDIR /$APP_HOME
 
 COPY . .
 RUN pip install .
