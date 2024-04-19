@@ -14,8 +14,8 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(b'Not Found')
 
-def run(server_class=HTTPServer, handler_class=SimpleHTTPRequestHandler, port=8080):
-    server_address = ('', port)
+def run(server_class=HTTPServer, handler_class=SimpleHTTPRequestHandler, host='0.0.0.0', port=8080):
+    server_address = (host, port)
     httpd = server_class(server_address, handler_class)
     print(f'Starting server on port {port}...')
     httpd.serve_forever()
