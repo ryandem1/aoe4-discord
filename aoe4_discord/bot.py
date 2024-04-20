@@ -49,11 +49,27 @@ async def apm(ctx: discord.ext.commands.Context, profile: Idiot) -> None:
         last_games = await client.get_games(profile)
 
         game_apms = await asyncio.gather(*(client.get_game_apm(profile, game["game_id"]) for game in last_games))
-        last_game_apm, other_apms = game_apms[0], game_apms[1:36]
+        last_game_apm, other_apms = game_apms[0], game_apms[1:]
 
         average_apm = round(sum(other_apms) / len(other_apms))
+        percent_change = aoe4_discord.stats.calculate_percentage_change(average_apm, last_game_apm)
+
+        if percent_change > 0:
+            result = "faster"
+            emoji = "🔥"
+        else:
+            emoji = "🐢"
+
+        if percent_change > 10:
+            emoji = "🚀"
+
+        if percent_change < -10:
+            emoji = "🦥"
+
+        percent_change = abs(percent_change)
+
         embed = discord.Embed(
-            title="APM Statistics",
+            title=f"{profile.title()} Last APM: {round(percent_change)}% {result} than average {emoji}",
             description=f"Last Game APM: {last_game_apm}\n"
                         f"Average APM: {average_apm} over {len(other_apms)} games",
             color=discord.Color.blue()
