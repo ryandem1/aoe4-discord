@@ -1,4 +1,4 @@
-import typing
+﻿import typing
 
 import aiohttp
 from consts import Idiot
@@ -89,3 +89,47 @@ class AOE4Client:
             data = await response.json()
 
         return data["games"]
+
+    async def get_last_game_with_trophies(self, profile: Idiot) -> Game | None:
+        """Retrieve the last game with trophy information for a profile"""
+        last_game = await self.get_last_game(profile)
+        if not last_game:
+            return None
+
+        player_team = None
+        for team in last_game["teams"]:
+            for player in team:
+                if player["profile_id"] == profile.profile_id:
+                    player_team = team
+                    break
+            if player_team:
+                break
+
+        if player_team:
+            most_kills = {"name": None, "value": 0}
+            largest_army = {"name": None, "value": 0}
+            most_razed = {"name": None, "value": 0}
+            most_economic = {"name": None, "value": 0}
+
+            for player in player_team:
+                if player.get("_stats", {}).get("ekills", 0) > most_kills["value"]:
+                    most_kills["name"] = player["name"]
+                    most_kills["value"] = player["_stats"]["ekills"]
+                if player.get("_stats", {}).get("unitprod", 0) > largest_army["value"]:
+                    largest_army["name"] = player["name"]
+                    largest_army["value"] = player["_stats"]["unitprod"]
+                if player.get("_stats", {}).get("structdmg", 0) > most_razed["value"]:
+                    most_razed["name"] = player["name"]
+                    most_razed["value"] = player["_stats"]["structdmg"]
+                if player.get("scores", {}).get("totalcmds", 0) > most_economic["value"]:
+                    most_economic["name"] = player["name"]
+                    most_economic["value"] = player["scores"]["economy"]
+
+            last_game["trophies"] = {
+                "most_kills": f"🏆 {most_kills['name']} ({most_kills['value']})",
+                "largest_army": f"🏆 {largest_army['name']} ({largest_army['value']})",
+                "most_razed": f"🏆 {most_razed['name']} ({most_razed['value']})",
+                "most_economic": f"🏆 {most_economic['name']} ({most_economic['value']})"
+            }
+
+        return last_game
