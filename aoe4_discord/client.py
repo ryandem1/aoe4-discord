@@ -7,7 +7,6 @@ import aoe4_discord.consts
 import aoe4_discord.models
 
 logger = logging.getLogger(__name__)
-_APM_CACHE: dict[str, int] = {}
 _GAME_SUMMARY_CACHE: dict[str, dict[str, typing.Any]] = {}
 
 
@@ -63,27 +62,6 @@ class AOE4Client:
             data = await response.json()
         return data
 
-    async def get_game_apm(self, profile: aoe4_discord.consts.Idiot, game_id: int) -> int | None:
-        """Get APM of game by ID"""
-        global _APM_CACHE
-
-        endpoint = f"/players/{profile.profile_id}/games/{game_id}/summary?camelize=true"
-        cache_key = str(profile.profile_id) + str(game_id)
-
-        if cache_key in _APM_CACHE:
-            return _APM_CACHE[cache_key]
-
-        async with self.session.get(self.base_url + endpoint) as response:
-            if response.status != 200:
-                logger.error(f"Error from API. Response Status: {response.status}. Text: {response.json()}")
-                return None
-            data = await response.json()
-
-        player = next(player for player in data["players"] if player["profileId"] == profile.profile_id)
-        _APM_CACHE[str(profile.profile_id) + str(game_id)] = player["apm"]
-
-        return player["apm"]
-
     async def get_games(self, profile: aoe4_discord.consts.Idiot) -> list[aoe4_discord.models.Game] | None:
         """Get most recent games"""
         endpoint = f"/api/v0/players/{profile.profile_id}/games"
@@ -116,3 +94,24 @@ class AOE4Client:
         data = aoe4_discord.models.filter_dict_to_type(data, aoe4_discord.models.GameSummary)
         _GAME_SUMMARY_CACHE[cache_key] = data
         return data
+
+    async def get_game_apm(
+            self,
+            profile: aoe4_discord.consts.Idiot,
+            game_id: int
+    ) -> aoe4_discord.models.GameSummary | None:
+        """Retrieves a game APM for a profile by game ID"""
+        summary = await self.get_game_summary(profile, game_id)
+        if not summary:
+            return
+
+        apm = summary.get("apm")
+        if not apm:
+            player = next(
+                player
+                for player in summary["players"]
+                if player["profileId"] == profile.profile_id
+            )
+            apm = player.get("apm")
+
+        return apm

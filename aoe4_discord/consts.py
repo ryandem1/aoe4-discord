@@ -8,13 +8,15 @@ class Idiot(enum.StrEnum):
     JORDANIEL = "jordaniel"
     RYAN = "ryan"
     JARED = "jared"
+    MASON = "mason"
 
     @classmethod
     def from_discord_username(cls, name: str) -> 'Idiot':
         return {
             "rybread5748": cls.RYAN,
             "_jorno": cls.JARED,
-            "jordandem.": cls.JORDANIEL
+            "jordandem.": cls.JORDANIEL,
+            "hoodie9569": cls.MASON
         }[name]
 
     @property
@@ -22,7 +24,8 @@ class Idiot(enum.StrEnum):
         return {
             self.JORDANIEL: 14762821,
             self.RYAN: 18933967,
-            self.JARED: 9367305
+            self.JARED: 9367305,
+            self.MASON: 14773093,
         }[self]
 
 

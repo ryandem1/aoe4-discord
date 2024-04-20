@@ -52,6 +52,7 @@ async def apm(ctx: discord.ext.commands.Context, profile: aoe4_discord.consts.Id
         last_games = await client.get_games(profile)
 
         game_apms = await asyncio.gather(*(client.get_game_apm(profile, game["game_id"]) for game in last_games))
+        game_apms = [game_apm for game_apm in game_apms if game_apm]
         last_game_apm, other_apms = game_apms[0], game_apms[1:]
 
         average_apm = round(sum(other_apms) / len(other_apms))

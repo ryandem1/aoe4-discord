@@ -80,6 +80,7 @@ class GameSummary(TypedDict):
     winReason: str
     mapName: str
     leaderboard: str
+    apm: int
     players: list[PlayerProfile]
 
 
