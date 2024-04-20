@@ -1,3 +1,4 @@
+import asyncio
 import typing
 
 import logging
@@ -45,26 +46,11 @@ async def ls(ctx: discord.ext.commands.Context, profile: Idiot) -> None:
 async def apm(ctx: discord.ext.commands.Context, profile: Idiot) -> None:
 
     async with aoe4_discord.AOE4Client() as client:
-        last_game = await client.get_last_game(profile)
-        if last_game is None:
-            await ctx.channel.send(f"don't know the last game for, sry: {profile}")
-            return
+        last_games = await client.get_games(profile)
 
-        last_game_id = last_game["game_id"]
-        last_game_apm = await client.get_game_apm(profile, game_id=last_game_id)
-        if last_game_apm is None:
-            await ctx.channel.send(f"don't know the apm for: {profile}")
-            return
+        game_apms = await asyncio.gather(*(client.get_game_apm(profile, game["game_id"]) for game in last_games))
+        last_game_apm, other_apms = game_apms[0], game_apms[1:36]
 
-        await ctx.channel.send(f"Last Game APM: {last_game_apm}")
-
-
-@AOE4DiscordBot.command(name="trivia", help="Trivia!")
-async def trivia(ctx: discord.ext.commands.Context, profile: Idiot) -> None:
-
-    async with aoe4_discord.AOE4Client() as client:
-        last_game = await client.get_last_game(profile)
-        if last_game is None:
-            await ctx.channel.send(f"sry, couldn't get the last game for: {profile}")
-
-        print(last_game)
+        average_apm = round(sum(other_apms) / len(other_apms))
+        await ctx.channel.send(f"Last Game APM: {last_game_apm}. "
+                               f"Average APM: {average_apm} over {len(other_apms)} games")

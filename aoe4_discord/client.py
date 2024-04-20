@@ -3,8 +3,11 @@ import typing
 import aiohttp
 from consts import Idiot
 import logging
+from models import Game
+import collections
 
 logger = logging.getLogger(__name__)
+__APM_CACHE: dict[str, int] = {}
 
 
 class AOE4Client:
@@ -58,7 +61,14 @@ class AOE4Client:
 
     async def get_game_apm(self, profile: Idiot, game_id: int) -> int | None:
         """Get APM of game by ID"""
+        global __APM_CACHE
+
         endpoint = f"/players/{profile.profile_id}/games/{game_id}/summary?camelize=true"
+        cache_key = str(profile.profile_id) + str(game_id)
+
+        if cache_key in __APM_CACHE:
+            return __APM_CACHE[cache_key]
+
         async with self.session.get(self.base_url + endpoint) as response:
             if response.status != 200:
                 logger.error(f"Error from API. Response Status: {response.status}. Text: {response.json()}")
@@ -66,4 +76,17 @@ class AOE4Client:
             data = await response.json()
 
         player = next(player for player in data["players"] if player["profileId"] == profile.profile_id)
+        __APM_CACHE[str(profile.profile_id) + str(game_id)] = player["apm"]
+
         return player["apm"]
+
+    async def get_games(self, profile: Idiot) -> list[Game] | None:
+        """Get most recent games"""
+        endpoint = f"/api/v0/players/{profile.profile_id}/games"
+        async with self.session.get(self.base_url + endpoint) as response:
+            if response.status != 200:
+                logger.error(f"Error from API. Response Status: {response.status}. Text: {response.json()}")
+                return
+            data = await response.json()
+
+        return data["games"]
