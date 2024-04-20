@@ -96,10 +96,14 @@ class AOE4Client:
         if not last_game:
             return None
 
+        game_summary = await self.get_game_summary(profile, last_game["game_id"])
+        if not game_summary:
+            return None
+
         player_team = None
-        for team in last_game["teams"]:
+        for team in game_summary["players"]:
             for player in team:
-                if player["profile_id"] == profile.profile_id:
+                if player["profileId"] == profile.profile_id:
                     player_team = team
                     break
             if player_team:
@@ -112,18 +116,18 @@ class AOE4Client:
             most_economic = {"name": None, "value": 0}
 
             for player in player_team:
-                if player.get("_stats", {}).get("ekills", 0) > most_kills["value"]:
+                if player.get("kills", 0) > most_kills["value"]:
                     most_kills["name"] = player["name"]
-                    most_kills["value"] = player["_stats"]["ekills"]
-                if player.get("_stats", {}).get("unitprod", 0) > largest_army["value"]:
+                    most_kills["value"] = player["kills"]
+                if player.get("military", 0) > largest_army["value"]:
                     largest_army["name"] = player["name"]
-                    largest_army["value"] = player["_stats"]["unitprod"]
-                if player.get("_stats", {}).get("structdmg", 0) > most_razed["value"]:
+                    largest_army["value"] = player["military"]
+                if player.get("razed", 0) > most_razed["value"]:
                     most_razed["name"] = player["name"]
-                    most_razed["value"] = player["_stats"]["structdmg"]
-                if player.get("scores", {}).get("totalcmds", 0) > most_economic["value"]:
+                    most_razed["value"] = player["razed"]
+                if player.get("economy", 0) > most_economic["value"]:
                     most_economic["name"] = player["name"]
-                    most_economic["value"] = player["scores"]["economy"]
+                    most_economic["value"] = player["economy"]
 
             last_game["trophies"] = {
                 "most_kills": f"🏆 {most_kills['name']} ({most_kills['value']})",
@@ -133,3 +137,13 @@ class AOE4Client:
             }
 
         return last_game
+
+    async def get_game_summary(self, profile: Idiot, game_id: int) -> dict[str, typing.Any] | None:
+        """Get game summary by ID"""
+        endpoint = f"/players/{profile.profile_id}/games/{game_id}/summary?camelize=true"
+        async with self.session.get(self.base_url + endpoint) as response:
+            if response.status != 200:
+                logger.error(f"Error from API. Response Status: {response.status}. Text: {response.json()}")
+                return None
+            data = await response.json()
+        return data
