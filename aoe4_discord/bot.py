@@ -62,6 +62,7 @@ async def apm(ctx: discord.ext.commands.Context, profile: aoe4_discord.consts.Id
             result = "faster"
             emoji = "🔥"
         else:
+            result = "slower"
             emoji = "🐢"
 
         if percent_change > 10:
@@ -94,6 +95,9 @@ async def relics(ctx: discord.ext.commands.Context, profile: typing.Optional[aoe
             return
 
         game_summary = await client.get_game_summary(profile, last_game["game_id"])
+
+    if not game_summary:
+        await ctx.send("No game summary available yet. Be patient bitch")
 
     team: list[aoe4_discord.models.PlayerProfile] = [
         player
