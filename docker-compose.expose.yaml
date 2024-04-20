@@ -3,3 +3,5 @@ services:
   bot:
     env_file:
       - .env
+    volumes:
+      - .:/bot
