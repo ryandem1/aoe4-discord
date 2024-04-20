@@ -1,4 +1,5 @@
-from typing import TypedDict, List, Dict, Any
+import typing
+from typing import TypedDict
 
 
 class Player(TypedDict):
@@ -36,4 +37,72 @@ class Game(TypedDict):
     average_mmr_deviation: int
     ongoing: bool
     just_finished: bool
-    teams: List[List[Team]]
+    teams: list[list[Team]]
+
+
+class GameStats(TypedDict):
+    abil: int
+    bprod: int
+    edeaths: int
+    ekills: int
+    elitekill: int
+    gt: int
+    inactperiod: int
+    sqkill: int
+    sqlost: int
+    sqprod: int
+    structdmg: int
+    totalcmds: int
+    unitprod: int
+    upg: int
+
+
+class Resources(TypedDict):
+    military: list[int]
+    economy: list[int]
+
+
+class PlayerProfile(TypedDict):
+    profileId: int
+    name: str
+    civilization: str
+    team: int
+    teamName: str
+    apm: int
+    result: str
+    _stats: GameStats
+    resources: Resources
+    civilizationAttrib: str
+
+
+class GameSummary(TypedDict):
+    gameId: int
+    winReason: str
+    mapName: str
+    leaderboard: str
+    players: list[PlayerProfile]
+
+
+def filter_dict_to_type[__T](input_dict: dict[str, typing.Any], type_: typing.Type[__T]) -> __T:
+    """Picks apart an input dict and only keys the """
+    keys = list(type_.__annotations__.keys())
+
+    filtered_dict = {
+        key: input_dict[key]
+        for key in keys
+        if key in input_dict
+    }
+
+    # print(filtered_dict)
+    for key, value in filtered_dict.items():
+        if isinstance(value, dict):
+            filtered_dict[key] = filter_dict_to_type(value, type_.__annotations__[key])
+        elif isinstance(value, list) and value and isinstance(value[0], dict):
+            filtered_dict[key] = [
+                filter_dict_to_type(item, type_.__annotations__[key].__args__[0])
+                for item in value
+            ]
+        else:
+            filtered_dict[key] = value
+
+    return type_(filtered_dict)

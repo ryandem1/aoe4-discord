@@ -1,10 +1,21 @@
 import enum
 
 
+RELIC_EMOJI_ID_IN_EGGS = 1231159121718411316  # In eggs server
+
+
 class Idiot(enum.StrEnum):
     JORDANIEL = "jordaniel"
     RYAN = "ryan"
     JARED = "jared"
+
+    @classmethod
+    def from_discord_username(cls, name: str) -> 'Idiot':
+        return {
+            "rybread5748": cls.RYAN,
+            "_jorno": cls.JARED,
+            "jordandem.": cls.JORDANIEL
+        }[name]
 
     @property
     def profile_id(self) -> int:

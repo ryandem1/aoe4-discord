@@ -1,12 +1,14 @@
-import typing
+﻿import typing
 
 import aiohttp
-from consts import Idiot
 import logging
-from models import Game
+import aoe4_discord
+import aoe4_discord.consts
+import aoe4_discord.models
 
 logger = logging.getLogger(__name__)
 _APM_CACHE: dict[str, int] = {}
+_GAME_SUMMARY_CACHE: dict[str, dict[str, typing.Any]] = {}
 
 
 class AOE4Client:
@@ -25,7 +27,7 @@ class AOE4Client:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.session.close()
 
-    async def get_player_profile_and_stats(self, profile: Idiot) -> dict[str, typing.Any] | None:
+    async def get_player_profile_and_stats(self, profile: aoe4_discord.consts.Idiot) -> dict[str, typing.Any] | None:
         """Will retrieve the player profile and stats for a profile by id.
         Endpoint: /v0/players/4635035
 
@@ -38,17 +40,20 @@ class AOE4Client:
             data = await response.json()
         return data
 
-    async def get_last_game(self, profile: Idiot) -> dict[str, typing.Any] | None:
+    async def get_last_game(self, profile: aoe4_discord.consts.Idiot) -> aoe4_discord.models.Game | None:
         """Will retrieve last games apm for a profile"""
-        endpoint = f"/api/v0/players/{profile.profile_id}/games/last"
-        async with self.session.get(self.base_url + endpoint) as response:
+        endpoint = f"/api/v0/players/{profile.profile_id}/games"
+        async with self.session.get(self.base_url + endpoint, params={"limit": 1}) as response:
             if response.status != 200:
                 logger.error(f"Error from API. Response Status: {response.status}. Text: {response.json()}")
                 return None
             data = await response.json()
-        return data
 
-    async def get_game(self, profile: Idiot, game_id: int) -> dict[str, typing.Any] | None:
+        if not data["games"]:
+            return
+        return data["games"][0]
+
+    async def get_game(self, profile: aoe4_discord.consts.Idiot, game_id: int) -> dict[str, typing.Any] | None:
         """Get game by ID"""
         endpoint = f"/api/v0/players/{profile.profile_id}/games/{game_id}"
         async with self.session.get(self.base_url + endpoint) as response:
@@ -58,7 +63,7 @@ class AOE4Client:
             data = await response.json()
         return data
 
-    async def get_game_apm(self, profile: Idiot, game_id: int) -> int | None:
+    async def get_game_apm(self, profile: aoe4_discord.consts.Idiot, game_id: int) -> int | None:
         """Get APM of game by ID"""
         global _APM_CACHE
 
@@ -79,7 +84,7 @@ class AOE4Client:
 
         return player["apm"]
 
-    async def get_games(self, profile: Idiot) -> list[Game] | None:
+    async def get_games(self, profile: aoe4_discord.consts.Idiot) -> list[aoe4_discord.models.Game] | None:
         """Get most recent games"""
         endpoint = f"/api/v0/players/{profile.profile_id}/games"
         async with self.session.get(self.base_url + endpoint) as response:
@@ -89,3 +94,25 @@ class AOE4Client:
             data = await response.json()
 
         return data["games"]
+
+    async def get_game_summary(
+            self,
+            profile: aoe4_discord.consts.Idiot,
+            game_id: int
+    ) -> aoe4_discord.models.GameSummary | None:
+        """Get game summary by ID"""
+        endpoint = f"/players/{profile.profile_id}/games/{game_id}/summary"
+        cache_key = str(profile.profile_id) + str(game_id)
+
+        if cache_key in _GAME_SUMMARY_CACHE:
+            return _GAME_SUMMARY_CACHE[cache_key]
+
+        async with self.session.get(self.base_url + endpoint, params={"camelize": "true"}) as response:
+            if response.status != 200:
+                logger.error(f"Error from API. Response Status: {response.status}. Text: {response.json()}")
+                return None
+            data = await response.json()
+
+        data = aoe4_discord.models.filter_dict_to_type(data, aoe4_discord.models.GameSummary)
+        _GAME_SUMMARY_CACHE[cache_key] = data
+        return data
