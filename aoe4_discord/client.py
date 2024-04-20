@@ -4,10 +4,9 @@ import aiohttp
 from consts import Idiot
 import logging
 from models import Game
-import collections
 
 logger = logging.getLogger(__name__)
-__APM_CACHE: dict[str, int] = {}
+_APM_CACHE: dict[str, int] = {}
 
 
 class AOE4Client:
@@ -61,13 +60,13 @@ class AOE4Client:
 
     async def get_game_apm(self, profile: Idiot, game_id: int) -> int | None:
         """Get APM of game by ID"""
-        global __APM_CACHE
+        global _APM_CACHE
 
         endpoint = f"/players/{profile.profile_id}/games/{game_id}/summary?camelize=true"
         cache_key = str(profile.profile_id) + str(game_id)
 
-        if cache_key in __APM_CACHE:
-            return __APM_CACHE[cache_key]
+        if cache_key in _APM_CACHE:
+            return _APM_CACHE[cache_key]
 
         async with self.session.get(self.base_url + endpoint) as response:
             if response.status != 200:
@@ -76,7 +75,7 @@ class AOE4Client:
             data = await response.json()
 
         player = next(player for player in data["players"] if player["profileId"] == profile.profile_id)
-        __APM_CACHE[str(profile.profile_id) + str(game_id)] = player["apm"]
+        _APM_CACHE[str(profile.profile_id) + str(game_id)] = player["apm"]
 
         return player["apm"]
 
