@@ -53,10 +53,21 @@ async def apm(ctx: discord.ext.commands.Context, profile: Idiot) -> None:
 
         average_apm = round(sum(other_apms) / len(other_apms))
         percent_change = aoe4_discord.stats.calculate_percentage_change(average_apm, last_game_apm)
-        result = "faster" if percent_change > 0 else "slower"
+
+        if percent_change > 0:
+            result = "faster"
+            emoji = "🔥"
+        else:
+            emoji = "🐢"
+
+        if percent_change > 10:
+            emoji = "🚀"
+
+        if percent_change < -10:
+            emoji = "🦥"
+
         percent_change = abs(percent_change)
 
-        emoji = "🔥" if last_game_apm > average_apm else "🦥"
         embed = discord.Embed(
             title=f"{profile.title()} Last APM: {round(percent_change)}% {result} than average {emoji}",
             description=f"Last Game APM: {last_game_apm}\n"
