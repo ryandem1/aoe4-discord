@@ -1,12 +1,14 @@
 ﻿import typing
 
 import aiohttp
-from consts import Idiot
 import logging
-from models import Game
+import aoe4_discord
+import aoe4_discord.consts
+import aoe4_discord.models
 
 logger = logging.getLogger(__name__)
 _APM_CACHE: dict[str, int] = {}
+_GAME_SUMMARY_CACHE: dict[str, dict[str, typing.Any]] = {}
 
 
 class AOE4Client:
@@ -25,7 +27,7 @@ class AOE4Client:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.session.close()
 
-    async def get_player_profile_and_stats(self, profile: Idiot) -> dict[str, typing.Any] | None:
+    async def get_player_profile_and_stats(self, profile: aoe4_discord.consts.Idiot) -> dict[str, typing.Any] | None:
         """Will retrieve the player profile and stats for a profile by id.
         Endpoint: /v0/players/4635035
 
@@ -38,17 +40,20 @@ class AOE4Client:
             data = await response.json()
         return data
 
-    async def get_last_game(self, profile: Idiot) -> dict[str, typing.Any] | None:
+    async def get_last_game(self, profile: aoe4_discord.consts.Idiot) -> aoe4_discord.models.Game | None:
         """Will retrieve last games apm for a profile"""
-        endpoint = f"/api/v0/players/{profile.profile_id}/games/last"
-        async with self.session.get(self.base_url + endpoint) as response:
+        endpoint = f"/api/v0/players/{profile.profile_id}/games"
+        async with self.session.get(self.base_url + endpoint, params={"limit": 1}) as response:
             if response.status != 200:
                 logger.error(f"Error from API. Response Status: {response.status}. Text: {response.json()}")
                 return None
             data = await response.json()
-        return data
 
-    async def get_game(self, profile: Idiot, game_id: int) -> dict[str, typing.Any] | None:
+        if not data["games"]:
+            return
+        return data["games"][0]
+
+    async def get_game(self, profile: aoe4_discord.consts.Idiot, game_id: int) -> dict[str, typing.Any] | None:
         """Get game by ID"""
         endpoint = f"/api/v0/players/{profile.profile_id}/games/{game_id}"
         async with self.session.get(self.base_url + endpoint) as response:
@@ -58,7 +63,7 @@ class AOE4Client:
             data = await response.json()
         return data
 
-    async def get_game_apm(self, profile: Idiot, game_id: int) -> int | None:
+    async def get_game_apm(self, profile: aoe4_discord.consts.Idiot, game_id: int) -> int | None:
         """Get APM of game by ID"""
         global _APM_CACHE
 
@@ -79,7 +84,7 @@ class AOE4Client:
 
         return player["apm"]
 
-    async def get_games(self, profile: Idiot) -> list[Game] | None:
+    async def get_games(self, profile: aoe4_discord.consts.Idiot) -> list[aoe4_discord.models.Game] | None:
         """Get most recent games"""
         endpoint = f"/api/v0/players/{profile.profile_id}/games"
         async with self.session.get(self.base_url + endpoint) as response:
@@ -90,60 +95,24 @@ class AOE4Client:
 
         return data["games"]
 
-    async def get_last_game_with_trophies(self, profile: Idiot) -> Game | None:
-        """Retrieve the last game with trophy information for a profile"""
-        last_game = await self.get_last_game(profile)
-        if not last_game:
-            return None
-
-        game_summary = await self.get_game_summary(profile, last_game["game_id"])
-        if not game_summary:
-            return None
-
-        player_team = None
-        for team in game_summary["players"]:
-            for player in team:
-                if player["profileId"] == profile.profile_id:
-                    player_team = team
-                    break
-            if player_team:
-                break
-
-        if player_team:
-            most_kills = {"name": None, "value": 0}
-            largest_army = {"name": None, "value": 0}
-            most_razed = {"name": None, "value": 0}
-            most_economic = {"name": None, "value": 0}
-
-            for player in player_team:
-                if player.get("kills", 0) > most_kills["value"]:
-                    most_kills["name"] = player["name"]
-                    most_kills["value"] = player["kills"]
-                if player.get("military", 0) > largest_army["value"]:
-                    largest_army["name"] = player["name"]
-                    largest_army["value"] = player["military"]
-                if player.get("razed", 0) > most_razed["value"]:
-                    most_razed["name"] = player["name"]
-                    most_razed["value"] = player["razed"]
-                if player.get("economy", 0) > most_economic["value"]:
-                    most_economic["name"] = player["name"]
-                    most_economic["value"] = player["economy"]
-
-            last_game["trophies"] = {
-                "most_kills": f"🏆 {most_kills['name']} ({most_kills['value']})",
-                "largest_army": f"🏆 {largest_army['name']} ({largest_army['value']})",
-                "most_razed": f"🏆 {most_razed['name']} ({most_razed['value']})",
-                "most_economic": f"🏆 {most_economic['name']} ({most_economic['value']})"
-            }
-
-        return last_game
-
-    async def get_game_summary(self, profile: Idiot, game_id: int) -> dict[str, typing.Any] | None:
+    async def get_game_summary(
+            self,
+            profile: aoe4_discord.consts.Idiot,
+            game_id: int
+    ) -> aoe4_discord.models.GameSummary | None:
         """Get game summary by ID"""
-        endpoint = f"/players/{profile.profile_id}/games/{game_id}/summary?camelize=true"
-        async with self.session.get(self.base_url + endpoint) as response:
+        endpoint = f"/players/{profile.profile_id}/games/{game_id}/summary"
+        cache_key = str(profile.profile_id) + str(game_id)
+
+        if cache_key in _GAME_SUMMARY_CACHE:
+            return _GAME_SUMMARY_CACHE[cache_key]
+
+        async with self.session.get(self.base_url + endpoint, params={"camelize": "true"}) as response:
             if response.status != 200:
                 logger.error(f"Error from API. Response Status: {response.status}. Text: {response.json()}")
                 return None
             data = await response.json()
+
+        data = aoe4_discord.models.filter_dict_to_type(data, aoe4_discord.models.GameSummary)
+        _GAME_SUMMARY_CACHE[cache_key] = data
         return data

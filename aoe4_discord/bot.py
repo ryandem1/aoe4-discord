@@ -1,11 +1,14 @@
 import asyncio
+import statistics
 import typing
 
 import logging
 import discord.ext.commands
 import aoe4_discord
-
-from aoe4_discord.consts import Elo, Idiot
+import aoe4_discord.models
+import aoe4_discord.consts
+import aoe4_discord.stats
+import aoe4_discord.client
 
 logging.basicConfig(
     level=logging.INFO,
@@ -26,26 +29,26 @@ async def on_ready() -> None:
 
 
 @AOE4DiscordBot.command(name="ls", help="Retrieve player profile and stats by profile ID.")
-async def ls(ctx: discord.ext.commands.Context, profile: Idiot) -> None:
-    async with aoe4_discord.AOE4Client() as client:
+async def ls(ctx: discord.ext.commands.Context, profile: aoe4_discord.consts.Idiot) -> None:
+    async with aoe4_discord.client.AOE4Client() as client:
         stats: dict[str, typing.Any] | None = await client.get_player_profile_and_stats(profile)
 
         if stats is None:
             await ctx.channel.send(f"Couldn't read stats for profile: {profile}")
             return
 
-        total_ls = stats["modes"][Elo.rm_solo]["losses_count"] + \
-            stats["modes"][Elo.rm_2v2]["losses_count"] + \
-            stats["modes"][Elo.rm_3v3]["losses_count"] + \
-            stats["modes"][Elo.rm_4v4]["losses_count"]
+        total_ls = stats["modes"][aoe4_discord.consts.Elo.rm_solo]["losses_count"] + \
+            stats["modes"][aoe4_discord.consts.Elo.rm_2v2]["losses_count"] + \
+            stats["modes"][aoe4_discord.consts.Elo.rm_3v3]["losses_count"] + \
+            stats["modes"][aoe4_discord.consts.Elo.rm_4v4]["losses_count"]
 
         await ctx.channel.send(f'Total {stats["name"]} Ls: {total_ls}')
 
 
 @AOE4DiscordBot.command(name="apm", help="Retrieve APM for the last game played by hardcoded player IDs.")
-async def apm(ctx: discord.ext.commands.Context, profile: Idiot) -> None:
+async def apm(ctx: discord.ext.commands.Context, profile: aoe4_discord.consts.Idiot) -> None:
 
-    async with aoe4_discord.AOE4Client() as client:
+    async with aoe4_discord.client.AOE4Client() as client:
         last_games = await client.get_games(profile)
 
         game_apms = await asyncio.gather(*(client.get_game_apm(profile, game["game_id"]) for game in last_games))
@@ -76,44 +79,74 @@ async def apm(ctx: discord.ext.commands.Context, profile: Idiot) -> None:
         )
         await ctx.channel.send(embed=embed)
 
-@AOE4DiscordBot.command(name="trophy", help="Retrieve the last game with trophy information for a specific profile.")
-async def trophy(ctx: discord.ext.commands.Context, name: str) -> None:
-    try:
-        idiot = Idiot(name.lower())
-        profile_id = idiot.profile_id
-    except ValueError:
-        await ctx.send(f"Invalid name: {name}. Please provide a valid name (jordaniel, ryan, or jared).")
-        return
 
-    async with aoe4_discord.AOE4Client() as client:
-        last_game = await client.get_last_game_with_trophies(Idiot(idiot))
+@AOE4DiscordBot.command(name="relics", help="Retrieve the last game with relic information.")
+async def relics(ctx: discord.ext.commands.Context, profile: typing.Optional[aoe4_discord.consts.Idiot] = None) -> None:
+    if not profile:
+        profile = aoe4_discord.consts.Idiot.from_discord_username(ctx.author.name)
+
+    async with aoe4_discord.client.AOE4Client() as client:
+        last_game = await client.get_last_game(profile)
 
         if not last_game:
             await ctx.send("No last game found for the specified profile.")
             return
 
-        embed = discord.Embed(title="Last Game", color=discord.Color.blue())
-        embed.add_field(name="Game ID", value=last_game["game_id"], inline=False)
-        embed.add_field(name="Started At", value=last_game["started_at"], inline=False)
-        embed.add_field(name="Duration", value=f"{last_game['duration']} seconds", inline=False)
-        embed.add_field(name="Map", value=last_game["map"], inline=False)
-        embed.add_field(name="Game Mode", value=last_game["kind"], inline=False)
+        game_summary = await client.get_game_summary(profile, last_game["game_id"])
 
-        if "trophies" in last_game:
-            trophies = last_game["trophies"]
-            embed.add_field(name="Most Kills", value=trophies["most_kills"], inline=False)
-            embed.add_field(name="Most Units", value=trophies["largest_army"], inline=False)
-            embed.add_field(name="Most Razed", value=trophies["most_razed"], inline=False)
-            embed.add_field(name="Most Economic", value=trophies["most_economic"], inline=False)
-        else:
-            embed.add_field(name="Trophies", value="No trophy information available.", inline=False)
+    team: list[aoe4_discord.models.PlayerProfile] = [
+        player
+        for player in game_summary["players"]
+        if player["profileId"] in [i.__getattribute__("profile_id") for i in aoe4_discord.consts.Idiot]
+    ]
 
-        for team in last_game["teams"]:
-            for player in team:
-                if player["profile_id"] == profile_id:
-                    embed.add_field(name="Player", value=player["name"], inline=True)
-                    embed.add_field(name="Civilization", value=player["civilization"], inline=True)
-                    embed.add_field(name="Outcome", value=player["result"], inline=True)
-                    break
+    best_kill_weighted_by_kd, bkwkd_player = 0, ""
+    highest_avg_military, ham_player = 0, ""
+    highest_avg_economy, hae_player = 0, ""
 
-        await ctx.send(embed=embed)
+    for player in team:
+        stats = player["_stats"]
+
+        kills = stats["sqkill"]
+        lost = stats["sqlost"]
+        kd = kills / lost
+
+        avg_military = statistics.mean(player["resources"]["military"])
+        avg_economy = statistics.mean(player["resources"]["economy"])
+
+        kills_weighted_by_kd = kills * kd
+
+        if kills_weighted_by_kd > best_kill_weighted_by_kd:
+            best_kill_weighted_by_kd, bkwkd_player = kills_weighted_by_kd, player["name"]
+
+        if avg_military > highest_avg_military:
+            highest_avg_military, ham_player = avg_military, player["name"]
+
+        if avg_economy > highest_avg_economy:
+            highest_avg_economy, hae_player = avg_economy, player["name"]
+
+    embed = discord.Embed(title="Relic Awards for Last Game", color=discord.Color.blue())
+    embed.add_field(name="Outcome", value=f"{team[0]["result"]}", inline=True)
+    embed.add_field(name="End Reason", value=f"{game_summary["winReason"]}", inline=False)
+    embed.add_field(name="Duration", value=f"{last_game['duration']} seconds", inline=False)
+    embed.add_field(name="Map", value=last_game["map"], inline=False)
+    embed.add_field(name="Game Mode", value=last_game["kind"], inline=False)
+
+    relic_emote = AOE4DiscordBot.get_emoji(aoe4_discord.consts.RELIC_EMOJI_ID_IN_EGGS)
+    embed.add_field(
+        name="Best Kill Score",
+        value=f"{relic_emote} {bkwkd_player} ({round(best_kill_weighted_by_kd)})",
+        inline=False
+    )
+    embed.add_field(
+        name="Best Military",
+        value=f"{relic_emote} {ham_player} ({round(highest_avg_military)})",
+        inline=False
+    )
+    embed.add_field(
+        name="Best Economy",
+        value=f"{relic_emote} {hae_player} ({round(highest_avg_economy)})",
+        inline=False
+    )
+
+    await ctx.send(embed=embed)
