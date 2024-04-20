@@ -52,5 +52,11 @@ async def apm(ctx: discord.ext.commands.Context, profile: Idiot) -> None:
         last_game_apm, other_apms = game_apms[0], game_apms[1:36]
 
         average_apm = round(sum(other_apms) / len(other_apms))
-        await ctx.channel.send(f"Last Game APM: {last_game_apm}. "
-                               f"Average APM: {average_apm} over {len(other_apms)} games")
+        embed = discord.Embed(
+            title="APM Statistics",
+            description=f"Last Game APM: {last_game_apm}\n"
+                        f"Average APM: {average_apm} over {len(other_apms)} games",
+            color=discord.Color.blue()
+        )
+        await ctx.channel.send(embed=embed)
+
