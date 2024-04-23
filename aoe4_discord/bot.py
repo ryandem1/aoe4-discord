@@ -1,4 +1,7 @@
 import asyncio
+import collections
+import itertools
+import math
 import statistics
 import typing
 
@@ -91,13 +94,13 @@ async def relics(ctx: discord.ext.commands.Context, profile: typing.Optional[aoe
         last_game = await client.get_last_game(profile)
 
         if not last_game:
-            await ctx.send("No last game found for the specified profile.")
+            await ctx.send("...")
             return
 
         game_summary = await client.get_game_summary(profile, last_game["game_id"])
 
     if not game_summary:
-        await ctx.send("No game summary available yet. Be patient bitch")
+        await ctx.send("praying. be patient bitch")
 
     team: list[aoe4_discord.models.PlayerProfile] = [
         player
@@ -154,4 +157,178 @@ async def relics(ctx: discord.ext.commands.Context, profile: typing.Optional[aoe
         inline=False
     )
 
+    await ctx.send(embed=embed)
+
+
+@AOE4DiscordBot.command(name="prophecy", help="Get win probability of game")
+async def prophecy(
+        ctx: discord.ext.commands.Context,
+        profile: typing.Optional[aoe4_discord.consts.Idiot] = None,
+        game_id: typing.Optional[int] = None,
+) -> None:
+    """Win probability for a game"""
+    if not profile:
+        profile = aoe4_discord.consts.Idiot.from_discord_username(ctx.author.name)
+
+    async with aoe4_discord.client.AOE4Client() as client:
+        latest_games = await client.get_games(profile)
+        if not latest_games:
+            await ctx.send("*sings psalm solemnly*")
+            return
+
+        latest_game_summaries: tuple[aoe4_discord.models.GameSummary] = await asyncio.gather(*(
+            client.get_game_summary(profile, game["game_id"])
+            for game in latest_games
+        ))
+
+    latest_game_summaries: list[aoe4_discord.models.GameSummary] = [
+        game_summary
+        for game_summary in latest_game_summaries
+        if game_summary
+    ]
+
+    if not game_id:
+        last_game = latest_games[0]
+        game_id = last_game["game_id"]
+
+    game_for_prediction: aoe4_discord.models.Game | None = next((
+        game
+        for game in latest_games
+        if game["game_id"] == game_id
+    ), None)
+
+    game_summary_for_prediction: aoe4_discord.models.GameSummary = latest_game_summaries[0]
+
+    if game_summary_for_prediction["gameId"] != game_for_prediction["game_id"]:
+        await ctx.send("praying... give me a moment")
+        return
+
+    if not game_for_prediction:
+        await ctx.send("my mental is blocked")
+        return
+
+    player: aoe4_discord.models.PlayerProfile = next((
+        player
+        for player in game_summary_for_prediction["players"]
+        if player["profileId"] == profile.profile_id
+    ), None)
+
+    if not player:
+        await ctx.send("CRITICAL ERROR")
+        return
+
+    result = player["result"]
+    civ = player["civilization"]
+    team = player["team"]
+
+    latest_game_summaries_with_civ: list[aoe4_discord.models.GameSummary] = [
+        game_summary
+        for game_summary in latest_game_summaries
+        for game_player in game_summary["players"]
+        if aoe4_discord.models.is_subdictionary(
+            subdict={"profileId": profile.profile_id, "civilization": civ},
+            main_dict=game_player,
+        )
+    ]
+
+    vs_civ_win_rates: dict[str, dict[str, dict[str, int | float]]] = collections.defaultdict(dict)
+    ally_civ_win_rates: dict[str, dict[str, dict[str, int | float]]] = collections.defaultdict(dict)
+
+    for latest_game_summary in latest_game_summaries_with_civ:
+        for player_profile in latest_game_summary["players"]:
+
+            if player_profile["profileId"] == profile.profile_id:
+                player_civ = player_profile["civilization"]
+                result = player_profile["result"]  # win or loss
+
+                for game_mate in latest_game_summary["players"]:
+                    if game_mate["profileId"] == profile.profile_id:
+                        if "self" not in ally_civ_win_rates[player_civ]:
+                            ally_civ_win_rates[player_civ]["self"] = {"wins": 0, "games": 0}
+
+                        ally_civ_win_rates[player_civ]["self"]["games"] += 1
+                        if result == "win":
+                            ally_civ_win_rates[player_civ]["self"]["wins"] += 1
+                    elif game_mate["result"] != result:
+                        opponent_civ = game_mate["civilization"]
+
+                        if opponent_civ not in vs_civ_win_rates[player_civ]:
+                            vs_civ_win_rates[player_civ][opponent_civ] = {"wins": 0, "games": 0}
+
+                        vs_civ_win_rates[player_civ][opponent_civ]["games"] += 1
+                        if result == "win":
+                            vs_civ_win_rates[player_civ][opponent_civ]["wins"] += 1
+                    else:
+                        ally_civ = game_mate["civilization"]
+
+                        if ally_civ not in ally_civ_win_rates[player_civ]:
+                            ally_civ_win_rates[player_civ][ally_civ] = {"wins": 0, "games": 0}
+
+                        ally_civ_win_rates[player_civ][ally_civ]["games"] += 1
+                        if result == "win":
+                            ally_civ_win_rates[player_civ][ally_civ]["wins"] += 1
+
+    for player_civ, opponents in vs_civ_win_rates.items():
+        for opponent_civ, stats in opponents.items():
+            if stats["games"] > 0:
+                win_rate = stats["wins"] / stats["games"]
+                vs_civ_win_rates[player_civ][opponent_civ]["win_rate"] = round(win_rate, 2)
+
+    for player_civ, opponents in ally_civ_win_rates.items():
+        for ally_civ, stats in opponents.items():
+            if stats["games"] > 0:
+                win_rate = stats["wins"] / stats["games"]
+                ally_civ_win_rates[player_civ][ally_civ]["win_rate"] = round(win_rate, 2)
+
+    vs_civs = [
+        game_player["civilization"]
+        for game_player in game_summary_for_prediction["players"]
+        if game_player["team"] != team
+    ]
+
+    ally_civs = ["self"] + [
+        game_player["civilization"]
+        for game_player in game_summary_for_prediction["players"]
+        if game_player["team"] == team and game_player["profileId"] != profile.profile_id
+    ]
+
+    win_rates_your_team = [
+        ally_civ_win_rates.get(civ, {}).get(ally_civ, {}).get("win_rate", -1.0)
+        for ally_civ in ally_civs
+        if ally_civ_win_rates.get(civ, {}).get(ally_civ, {}).get("win_rate", -1.0) >= 0.0
+    ]
+
+    win_rates_opponent_team = [
+        1 - vs_civ_win_rates.get(civ, {}).get(vs_civ, {}).get("win_rate", 0.0)
+        for vs_civ in vs_civs
+        if vs_civ_win_rates.get(civ, {}).get(vs_civ, {}).get("win_rate", -1.0) >= 0.0
+    ]
+
+    vs_win_rate = sum(win_rates_opponent_team) / len(win_rates_opponent_team)
+    ally_win_rate = sum(win_rates_your_team) / len(win_rates_your_team)
+
+    _ = vs_win_rate / (vs_win_rate + ally_win_rate)
+    w_probability = ally_win_rate / (vs_win_rate + ally_win_rate)
+
+    embed = discord.Embed(title="Win Probability", color=discord.Color.blue())
+    embed.add_field(
+        name="Outcome",
+        value=result,
+        inline=False,
+    )
+    embed.add_field(
+        name="Ally Civs",
+        value=", ".join([civ] + [c for c in ally_civs if c != "self"]),
+        inline=False,
+    )
+    embed.add_field(
+        name="Opponent Civs",
+        value=", ".join(vs_civs),
+        inline=False,
+    )
+    embed.add_field(
+        name="Win Probability",
+        value=f"{w_probability*100:.2f}%",
+        inline=False,
+    )
     await ctx.send(embed=embed)

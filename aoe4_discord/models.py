@@ -85,7 +85,7 @@ class GameSummary(TypedDict):
 
 
 def filter_dict_to_type[__T](input_dict: dict[str, typing.Any], type_: typing.Type[__T]) -> __T:
-    """Picks apart an input dict and only keys the """
+    """Picks apart an input dict and only keys specified"""
     keys = list(type_.__annotations__.keys())
 
     filtered_dict = {
@@ -94,7 +94,6 @@ def filter_dict_to_type[__T](input_dict: dict[str, typing.Any], type_: typing.Ty
         if key in input_dict
     }
 
-    # print(filtered_dict)
     for key, value in filtered_dict.items():
         if isinstance(value, dict):
             filtered_dict[key] = filter_dict_to_type(value, type_.__annotations__[key])
@@ -107,3 +106,16 @@ def filter_dict_to_type[__T](input_dict: dict[str, typing.Any], type_: typing.Ty
             filtered_dict[key] = value
 
     return type_(filtered_dict)
+
+
+def is_subdictionary(subdict: dict, main_dict: dict) -> bool:
+    """Checks if a subdictionary is a subdictionary of the main dictionary.
+
+    :param subdict: Sub-dictionary to be checked
+    :param main_dict: Main dictionary to be checked
+    :return: bool
+    """
+    for key, value in subdict.items():
+        if key not in main_dict or main_dict[key] != value:
+            return False
+    return True

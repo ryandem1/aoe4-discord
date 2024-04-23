@@ -41,3 +41,28 @@ class Elo(enum.StrEnum):
     qm_2v2 = "qm_2v2_elo"
     qm_3v3 = "qm_3v3_elo"
     qm_4v4 = "qm_4v4_elo"
+
+
+class Civ(enum.StrEnum):
+    """Civilization for AOE 4"""
+    ABBASID = "abbasid"
+    AYYUBIDS = "ayyubids"
+    BYZANTINES = "byzantines"
+    CHINESE = "chinese"
+    DELHI = "delhi"
+    DELHI_SULTANATE = "delhi_sultanate"  # Through non /api routes
+    ENGLISH = "english"
+    FRENCH = "french"
+    HRE = "hre"
+    HOLY_ROMAN_EMPIRE = "holy_roman_empire"  # Through non /api routes
+    JAPANESE = "japanese"
+    JEANNEDARC = "jeannedarc"
+    JEANNE_DARC = "jeanne_darc"   # Through non /api routes
+    MALIANS = "malians"
+    MONGOLS = "mongols"
+    ORDEROFTHEDRAGON = "orderofthedragon"
+    ORDER_OF_THE_DRAGON = "order_of_the_dragon"  # Through non /api routes
+    OTTOMANS = "ottomans"
+    RUS = "rus"
+    ZHUXI = "zhuxi"
+    ZHU_XIS_LEGACY = "zhu_xis_legacy"  # Through non /api routes
