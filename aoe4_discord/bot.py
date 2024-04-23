@@ -1,17 +1,16 @@
 import asyncio
 import collections
-import itertools
-import math
+import logging
 import statistics
 import typing
 
-import logging
 import discord.ext.commands
+
 import aoe4_discord
-import aoe4_discord.models
-import aoe4_discord.consts
-import aoe4_discord.stats
 import aoe4_discord.client
+import aoe4_discord.consts
+import aoe4_discord.models
+import aoe4_discord.stats
 
 logging.basicConfig(
     level=logging.INFO,
