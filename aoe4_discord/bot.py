@@ -208,7 +208,9 @@ async def relics(ctx: discord.ext.commands.Context, profile: typing.Optional[aoe
     await ctx.send(embed=embed)
 
     aoe4_discord.db.write_games(game)
-    aoe4_discord.db.write_relics(*all_relics)
+
+    if game["game_mode"] != "rm_1v1":  # no 1v1s
+        aoe4_discord.db.write_relics(*all_relics)
 
 
 @AOE4DiscordBot.command(name="tally", help="Retrieve the divine tally.")
