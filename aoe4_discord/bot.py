@@ -309,7 +309,7 @@ async def prophecy(
     _ = vs_win_rate / (vs_win_rate + ally_win_rate)
     w_probability = ally_win_rate / (vs_win_rate + ally_win_rate)
 
-    embed = discord.Embed(title="Win Probability", color=discord.Color.blue())
+    embed = discord.Embed(title="Prophecy", color=discord.Color.blue())
     embed.add_field(
         name="Outcome",
         value=result,
