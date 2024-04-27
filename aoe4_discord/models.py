@@ -1,3 +1,4 @@
+import datetime
 import typing
 from typing import TypedDict
 
@@ -82,6 +83,26 @@ class GameSummary(TypedDict):
     leaderboard: str
     apm: int
     players: list[PlayerProfile]
+
+
+class GameRow(TypedDict):
+    id: int
+    map: str
+    outcome: str
+    end_reason: str
+    duration: int
+    game_mode: str
+    players: str
+    created_at: datetime.datetime | None
+
+
+class RelicRow(TypedDict):
+    id: int
+    game_id: int
+    name: str
+    winner: str
+    score: int
+    created_at: datetime.datetime | None
 
 
 def filter_dict_to_type[__T](input_dict: dict[str, typing.Any], type_: typing.Type[__T]) -> __T:

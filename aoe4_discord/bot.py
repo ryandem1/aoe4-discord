@@ -11,6 +11,7 @@ import aoe4_discord.client
 import aoe4_discord.consts
 import aoe4_discord.models
 import aoe4_discord.stats
+import aoe4_discord.db
 
 logging.basicConfig(
     level=logging.INFO,
@@ -98,6 +99,8 @@ async def relics(ctx: discord.ext.commands.Context, profile: typing.Optional[aoe
 
         game_summary = await client.get_game_summary(profile, last_game["game_id"])
 
+    game_id = last_game["game_id"]
+
     if not game_summary:
         await ctx.send("praying. be patient bitch")
 
@@ -106,6 +109,11 @@ async def relics(ctx: discord.ext.commands.Context, profile: typing.Optional[aoe
         for player in game_summary["players"]
         if player["profileId"] in [i.__getattribute__("profile_id") for i in aoe4_discord.consts.Idiot]
     ]
+
+    player_names = ", ".join(
+        player["name"]
+        for player in game_summary["players"]
+    )
 
     best_kill_weighted_by_kd, bkwkd_player = 0, ""
     highest_avg_military, ham_player = 0, ""
@@ -132,31 +140,75 @@ async def relics(ctx: discord.ext.commands.Context, profile: typing.Optional[aoe
         if avg_economy > highest_avg_economy:
             highest_avg_economy, hae_player = avg_economy, player["name"]
 
+    result = team[0]["result"]
+    end_reason = game_summary["winReason"]
+    duration = last_game["duration"]
+    map_ = last_game["map"]
+    mode = last_game["kind"]
+
+    game = aoe4_discord.models.GameRow(
+        id=game_id,
+        outcome=result,
+        end_reason=end_reason,
+        duration=duration,
+        map=map_,
+        game_mode=mode,
+        players=player_names,
+        created_at=None  # don't need it for writing
+    )
+
     embed = discord.Embed(title="Relic Awards for Last Game", color=discord.Color.blue())
-    embed.add_field(name="Outcome", value=f"{team[0]["result"]}", inline=True)
-    embed.add_field(name="End Reason", value=f"{game_summary["winReason"]}", inline=False)
-    embed.add_field(name="Duration", value=f"{last_game['duration']} seconds", inline=False)
-    embed.add_field(name="Map", value=last_game["map"], inline=False)
-    embed.add_field(name="Game Mode", value=last_game["kind"], inline=False)
+    embed.add_field(name="Outcome", value=f"{result}", inline=True)
+    embed.add_field(name="End Reason", value=f"{end_reason}", inline=False)
+    embed.add_field(name="Duration", value=f"{duration} seconds", inline=False)
+    embed.add_field(name="Map", value=map_, inline=False)
+    embed.add_field(name="Game Mode", value=mode, inline=False)
 
     relic_emote = AOE4DiscordBot.get_emoji(aoe4_discord.consts.RELIC_EMOJI_ID_IN_EGGS)
-    embed.add_field(
+
+    best_kill_score_relic = aoe4_discord.models.RelicRow(
+        id=0,  # not used for writing
+        game_id=game_id,
         name="Best Kill Score",
-        value=f"{relic_emote} {bkwkd_player} ({round(best_kill_weighted_by_kd)})",
-        inline=False
-    )
-    embed.add_field(
-        name="Best Military",
-        value=f"{relic_emote} {ham_player} ({round(highest_avg_military)})",
-        inline=False
-    )
-    embed.add_field(
-        name="Best Economy",
-        value=f"{relic_emote} {hae_player} ({round(highest_avg_economy)})",
-        inline=False
+        score=round(best_kill_weighted_by_kd),
+        winner=bkwkd_player,
+        created_at=None  # not used for writing
     )
 
+    best_military_relic = aoe4_discord.models.RelicRow(
+        id=0,
+        game_id=game_id,
+        name="Best Military",
+        score=round(highest_avg_military),
+        winner=ham_player,
+        created_at=None
+    )
+    best_economy_relic = aoe4_discord.models.RelicRow(
+        id=0,
+        game_id=game_id,
+        name="Best Economy",
+        score=round(highest_avg_economy),
+        winner=hae_player,
+        created_at=None
+    )
+
+    all_relics = [
+        best_kill_score_relic,
+        best_military_relic,
+        best_economy_relic
+    ]
+
+    for relic in all_relics:
+        embed.add_field(
+            name="Best Kill Score",
+            value=f"{relic_emote} {relic['winner']} ({relic['score']})",
+            inline=False
+        )
+
     await ctx.send(embed=embed)
+
+    aoe4_discord.db.write_games_to_db(game)
+    aoe4_discord.db.write_relics_to_db(*all_relics)
 
 
 @AOE4DiscordBot.command(name="prophecy", help="Get win probability of game")
