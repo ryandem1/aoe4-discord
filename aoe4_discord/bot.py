@@ -200,7 +200,7 @@ async def relics(ctx: discord.ext.commands.Context, profile: typing.Optional[aoe
 
     for relic in all_relics:
         embed.add_field(
-            name="Best Kill Score",
+            name=relic["name"],
             value=f"{relic_emote} {relic['winner']} ({relic['score']})",
             inline=False
         )
@@ -212,6 +212,9 @@ async def relics(ctx: discord.ext.commands.Context, profile: typing.Optional[aoe
     if game["game_mode"] != "rm_1v1":  # no 1v1s
         aoe4_discord.db.write_relics(*all_relics)
 
+@AOE4DiscordBot.command(name="harmonize", help="Brings all things together")
+async def harmonize(ctx: discord.ext.commands.Context) -> None:
+    pass
 
 @AOE4DiscordBot.command(name="tally", help="Retrieve the divine tally.")
 async def tally(ctx: discord.ext.commands.Context) -> None:
