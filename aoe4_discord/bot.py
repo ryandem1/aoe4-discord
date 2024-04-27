@@ -207,8 +207,47 @@ async def relics(ctx: discord.ext.commands.Context, profile: typing.Optional[aoe
 
     await ctx.send(embed=embed)
 
-    aoe4_discord.db.write_games_to_db(game)
-    aoe4_discord.db.write_relics_to_db(*all_relics)
+    aoe4_discord.db.write_games(game)
+    aoe4_discord.db.write_relics(*all_relics)
+
+
+@AOE4DiscordBot.command(name="tally", help="Retrieve the divine tally.")
+async def tally(ctx: discord.ext.commands.Context) -> None:
+    relic_names = [
+        "Best Kill Score",
+        "Best Military",
+        "Best Economy",
+    ]
+
+    relic_stats = [
+        aoe4_discord.db.read_relic_stats(relic)
+        for relic in relic_names
+    ]
+    relic_emote = AOE4DiscordBot.get_emoji(aoe4_discord.consts.RELIC_EMOJI_ID_IN_EGGS)
+    embed = discord.Embed(
+        title=f"{relic_emote} Relic Divine Tally {relic_emote}",
+        color=discord.Color.blue()
+    )
+
+    for relic_stat in relic_stats:
+        embed.add_field(
+            name="Relic",
+            value=relic_stat["name"],
+            inline=False
+        )
+        embed.add_field(
+            name="Most Relics",
+            value=f'{relic_stat["most_relics_player"]} ({relic_stat["most_relics"]})',
+            inline=False
+        )
+        embed.add_field(
+            name="Highest Score",
+            value=f'{relic_stat["max_score_player"]} ({relic_stat["max_score"]})',
+            inline=False
+        )
+        embed.add_field(name=f"{relic_emote}" * 9, value="", inline=False)
+
+    await ctx.send(embed=embed)
 
 
 @AOE4DiscordBot.command(name="prophecy", help="Get win probability of game")

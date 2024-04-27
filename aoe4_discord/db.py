@@ -2,6 +2,7 @@ import contextlib
 import os
 
 import psycopg2
+import psycopg2.extras
 import logging
 
 import aoe4_discord.models
@@ -32,7 +33,7 @@ def pg_connection():
     connection.close()
 
 
-def write_relics_to_db(*relics: aoe4_discord.models.RelicRow) -> None:
+def write_relics(*relics: aoe4_discord.models.RelicRow) -> None:
     """Will write one or more relic objects to the RELICS table
 
     :param relics: list[aoe4_discord.models.RelicRow]
@@ -46,7 +47,16 @@ def write_relics_to_db(*relics: aoe4_discord.models.RelicRow) -> None:
     with pg_connection() as connection:
         cursor = connection.cursor()
         try:
-            data = [(f'{relic["game_id"]}{relic["name"]}', relic["game_id"], relic["name"], relic["winner"], relic["score"]) for relic in relics]
+            data = [
+                (
+                    f'{relic["game_id"]}{relic["name"]}',
+                    relic["game_id"],
+                    relic["name"],
+                    relic["winner"],
+                    relic["score"]
+                )
+                for relic in relics
+            ]
             cursor.executemany(insert_query, data)
             connection.commit()
             logger.info("Relics inserted successfully.")
@@ -57,7 +67,7 @@ def write_relics_to_db(*relics: aoe4_discord.models.RelicRow) -> None:
             cursor.close()
 
 
-def write_games_to_db(*games: aoe4_discord.models.GameRow) -> None:
+def write_games(*games: aoe4_discord.models.GameRow) -> None:
     """Will write one or more game objects to the GAMES table
 
     :param games: list[aoe4_discord.models.GameRow]
@@ -92,3 +102,56 @@ def write_games_to_db(*games: aoe4_discord.models.GameRow) -> None:
         finally:
             cursor.close()
 
+
+def read_relic_stats(relic_name: str) -> aoe4_discord.models.RelicStats:
+    """Reads relic stats by name."""
+    query = """
+    SELECT
+        MAX(score) AS MAX_SCORE,
+        (
+        SELECT winner
+        FROM relics
+        WHERE name = %s
+        AND score = (
+            SELECT MAX(score)
+            FROM relics
+            WHERE name = %s
+        )
+        ) AS MAX_SCORE_PLAYER,
+        (
+        SELECT winner
+        FROM relics
+        WHERE name = %s
+        GROUP BY winner
+        ORDER BY COUNT(*) DESC
+        LIMIT 1
+        ) AS MAX_RELICS_PLAYER,
+        (
+        SELECT COUNT(*) AS NUM_RELICS
+        FROM relics
+        WHERE name = %s
+        GROUP BY winner
+        ORDER BY NUM_RELICS DESC
+        LIMIT 1
+        ) AS MAX_RELICS
+    FROM relics
+    WHERE name = %s;
+    """
+    with pg_connection() as connection:
+        cursor = connection.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cursor.execute(query, vars=[relic_name] * 5)  # need to insert the relic name 5 times
+
+        rows = cursor.fetchall()
+        stats = next(
+            aoe4_discord.models.RelicStats(
+                name=relic_name,
+                max_score=row["max_score"],
+                max_score_player=row["max_score_player"],
+                most_relics=row["max_relics"],
+                most_relics_player=row["max_relics_player"],
+            )
+            for row in rows
+        )
+        cursor.close()
+
+    return stats

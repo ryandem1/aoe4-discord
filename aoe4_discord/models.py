@@ -105,6 +105,15 @@ class RelicRow(TypedDict):
     created_at: datetime.datetime | None
 
 
+class RelicStats(TypedDict):
+    """Summary stats for relics"""
+    name: str
+    max_score: int
+    max_score_player: int
+    most_relics: int
+    most_relics_player: str
+
+
 def filter_dict_to_type[__T](input_dict: dict[str, typing.Any], type_: typing.Type[__T]) -> __T:
     """Picks apart an input dict and only keys specified"""
     keys = list(type_.__annotations__.keys())
