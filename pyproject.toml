@@ -21,7 +21,8 @@ classifiers = [
 ]
 dependencies = [
   "aiohttp >= 3.9.0",
-  "discord.py >= 2.3.0"
+  "discord.py >= 2.3.0",
+  "psycopg2 >= 2.9.9"
 ]
 
 [build-system]
