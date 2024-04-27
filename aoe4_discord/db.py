@@ -39,13 +39,14 @@ def write_relics_to_db(*relics: aoe4_discord.models.RelicRow) -> None:
     :return: None
     """
     insert_query = """
-        INSERT INTO RELICS (GAME_ID, NAME, WINNER, SCORE)
-        VALUES (%s, %s, %s, %s)
+        INSERT INTO RELICS (ID, GAME_ID, NAME, WINNER, SCORE)
+        VALUES (%s, %s, %s, %s, %s)
+        ON CONFLICT (ID) DO NOTHING;
     """
     with pg_connection() as connection:
         cursor = connection.cursor()
         try:
-            data = [(relic["game_id"], relic["name"], relic["winner"], relic["score"]) for relic in relics]
+            data = [(f'{relic["game_id"]}{relic["name"]}', relic["game_id"], relic["name"], relic["winner"], relic["score"]) for relic in relics]
             cursor.executemany(insert_query, data)
             connection.commit()
             logger.info("Relics inserted successfully.")
@@ -62,10 +63,10 @@ def write_games_to_db(*games: aoe4_discord.models.GameRow) -> None:
     :param games: list[aoe4_discord.models.GameRow]
     :return: None
     """
-    # Define the SQL query to insert multiple game rows
     insert_query = """
         INSERT INTO GAMES (ID, MAP, OUTCOME, END_REASON, DURATION, GAME_MODE, PLAYERS)
         VALUES (%s, %s, %s, %s, %s, %s, %s)
+        ON CONFLICT (ID) DO NOTHING;
     """
     with pg_connection() as connection:
         cursor = connection.cursor()
