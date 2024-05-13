@@ -118,7 +118,9 @@ async def relics(ctx: discord.ext.commands.Context, profile: typing.Optional[aoe
     best_kill_weighted_by_kd, bkwkd_player = 0, ""
     highest_avg_military, ham_player = 0, ""
     highest_avg_economy, hae_player = 0, ""
+    lowest_avg_unspent_resources, laur_player = float("inf"), ""
 
+    player_stats: dict[str, dict[str, int | float]] = {}
     for player in team:
         stats = player["_stats"]
 
@@ -128,8 +130,21 @@ async def relics(ctx: discord.ext.commands.Context, profile: typing.Optional[aoe
 
         avg_military = statistics.mean(player["resources"]["military"])
         avg_economy = statistics.mean(player["resources"]["economy"])
+        avg_unspent_resources = aoe4_discord.stats.micro_average(
+            player["resources"]["gold"],
+            player["resources"]["wood"],
+            player["resources"]["food"],
+            player["resources"]["stone"],
+        )
 
         kills_weighted_by_kd = kills * kd
+
+        player_stats[player["name"]] = {
+            "Best Kill Score": kills_weighted_by_kd,
+            "Best Military": avg_military,
+            "Best Economy": avg_economy,
+            "Lowest Average Unspent Resources": avg_unspent_resources,
+        }
 
         if kills_weighted_by_kd > best_kill_weighted_by_kd:
             best_kill_weighted_by_kd, bkwkd_player = kills_weighted_by_kd, player["name"]
@@ -139,6 +154,9 @@ async def relics(ctx: discord.ext.commands.Context, profile: typing.Optional[aoe
 
         if avg_economy > highest_avg_economy:
             highest_avg_economy, hae_player = avg_economy, player["name"]
+
+        if avg_unspent_resources < lowest_avg_unspent_resources:
+            lowest_avg_unspent_resources, laur_player = avg_unspent_resources, player["name"]
 
     result = team[0]["result"]
     end_reason = game_summary["winReason"]
@@ -191,17 +209,30 @@ async def relics(ctx: discord.ext.commands.Context, profile: typing.Optional[aoe
         winner=hae_player,
         created_at=None
     )
+    lowest_average_unspent_resources = aoe4_discord.models.RelicRow(
+        id=0,
+        game_id=game_id,
+        name="Lowest Average Unspent Resources",
+        score=round(lowest_avg_unspent_resources),
+        winner=laur_player,
+        created_at=None
+    )
 
     all_relics = [
         best_kill_score_relic,
         best_military_relic,
-        best_economy_relic
+        best_economy_relic,
+        lowest_average_unspent_resources
     ]
 
     for relic in all_relics:
+        val = f"{relic_emote} {relic['winner']} ({relic['score']})"
+        for player in [p for p in player_stats if p != relic["winner"]]:
+            val += f'\n{player} ({round(player_stats[player][relic["name"]])})'
+
         embed.add_field(
             name=relic["name"],
-            value=f"{relic_emote} {relic['winner']} ({relic['score']})",
+            value=val,
             inline=False
         )
 

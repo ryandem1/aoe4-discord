@@ -61,6 +61,10 @@ class GameStats(TypedDict):
 class Resources(TypedDict):
     military: list[int]
     economy: list[int]
+    food: list[int]
+    gold: list[int]
+    stone: list[int]
+    wood: list[int]
 
 
 class PlayerProfile(TypedDict):
