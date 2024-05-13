@@ -81,6 +81,7 @@ class AOE4Client:
         """Get game summary by ID"""
         endpoint = f"/players/{profile.profile_id}/games/{game_id}/summary"
         cache_key = str(profile.profile_id) + str(game_id)
+        global printed
 
         if cache_key in _GAME_SUMMARY_CACHE:
             return _GAME_SUMMARY_CACHE[cache_key]
