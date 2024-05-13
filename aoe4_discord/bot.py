@@ -3,7 +3,6 @@ import collections
 import logging
 import statistics
 import typing
-import random
 
 import discord.ext.commands
 
@@ -30,12 +29,6 @@ AOE4DiscordBot = discord.ext.commands.Bot(command_prefix="!", intents=intents)
 @AOE4DiscordBot.event
 async def on_ready() -> None:
     logger.info("Initialized bot")
-
-
-@AOE4DiscordBot.command(name="mantra", help="Exclaims a religious mantra")
-async def mantra(ctx: discord.ext.commands.Context) -> None:
-    wisdom = random.choice(aoe4_discord.consts.RELIGIOUS_MANTRAS)
-    await ctx.channel.send(wisdom)
 
 
 @AOE4DiscordBot.command(name="ls", help="Retrieve player profile and stats by profile ID.")
@@ -218,11 +211,6 @@ async def relics(ctx: discord.ext.commands.Context, profile: typing.Optional[aoe
 
     if game["game_mode"] != "rm_1v1":  # no 1v1s
         aoe4_discord.db.write_relics(*all_relics)
-
-
-@AOE4DiscordBot.command(name="harmonize", help="Brings all things together")
-async def harmonize(ctx: discord.ext.commands.Context) -> None:
-    pass
 
 
 @AOE4DiscordBot.command(name="tally", help="Retrieve the divine tally.")
