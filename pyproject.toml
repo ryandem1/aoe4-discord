@@ -21,8 +21,16 @@ classifiers = [
 ]
 dependencies = [
   "aiohttp >= 3.9.0",
-  "discord.py >= 2.3.0",
+  "discord.py >= 2.3.0"
+]
+
+[project.optional-dependencies]
+db = [
   "psycopg2 >= 2.9.9"
+]
+
+alpine = [  # All the packages that the alpine image needs
+  "psycopg2-binary >= 2.9.9"
 ]
 
 [build-system]
