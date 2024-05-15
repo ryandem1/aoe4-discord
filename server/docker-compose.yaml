@@ -1,0 +1,15 @@
+services:
+
+  bot:
+    image: ghcr.io/ryandem1/aoe4-discord:latest
+    container_name: bot
+    env_file:
+      - .env
+
+  db:
+    image: postgres:latest
+    restart: always
+    env_file:
+      - .env
+    volumes:
+      - ./aoe4-discord-db-data:/var/lib/postgresql/data
